@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 2   # IMPORTANT: need parent commit
 
       - name: Detect changed Deploy/*.ps1 files
         id: detect
@@ -31,7 +31,8 @@ jobs:
               ${{ github.event.pull_request.base.sha }} \
               ${{ github.event.pull_request.head.sha }})
           else
-            FILES=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
+            BASE=$(git rev-parse HEAD^1)
+            FILES=$(git diff --name-only "$BASE" "${{ github.sha }}")
           fi
 
           PS_FILES=$(echo "$FILES" \
@@ -47,8 +48,7 @@ jobs:
 
       - name: PR summary only
         if: github.event_name == 'pull_request'
-        run: |
-          echo "PR detection complete. No scripts executed."
+        run: echo "PR detection complete. No scripts executed."
 
   # ---------------- EXECUTE (MAIN ONLY) ----------------
   execute:
@@ -79,8 +79,6 @@ jobs:
 
       - name: Execute PowerShell script
         shell: pwsh
-        env:
-          GRAPH_TOKEN: ${{ env.GRAPH_TOKEN }}
         run: |
           Write-Host "Executing ${{ matrix.script }}"
           pwsh -File "${{ matrix.script }}" -GraphToken $env:GRAPH_TOKEN
