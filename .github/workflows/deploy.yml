@@ -1,0 +1,86 @@
+name: Deploy PowerShell scripts (Deploy folder only)
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+
+  # ---------------- DETECT (PR + MAIN) ----------------
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      files: ${{ steps.detect.outputs.files }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed Deploy/*.ps1 files
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only \
+              ${{ github.event.pull_request.base.sha }} \
+              ${{ github.event.pull_request.head.sha }})
+          else
+            FILES=$(git diff-tree --no-commit-id --name-only -r ${{ github.sha }})
+          fi
+
+          PS_FILES=$(echo "$FILES" \
+            | jq -R -s -c '
+                split("\n")
+                | map(select(startswith("Deploy/")))
+                | map(select(endswith(".ps1")))
+                | map(select(length > 0))
+              ')
+
+          echo "files=$PS_FILES" >> $GITHUB_OUTPUT
+          echo "Detected PowerShell files: $PS_FILES"
+
+      - name: PR summary only
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "PR detection complete. No scripts executed."
+
+  # ---------------- EXECUTE (MAIN ONLY) ----------------
+  execute:
+    needs: detect
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        script: ${{ fromJson(needs.detect.outputs.files) }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Get Graph token
+        run: |
+          TOKEN=$(az account get-access-token \
+            --resource https://graph.microsoft.com \
+            --query accessToken -o tsv)
+          echo "GRAPH_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Execute PowerShell script
+        shell: pwsh
+        env:
+          GRAPH_TOKEN: ${{ env.GRAPH_TOKEN }}
+        run: |
+          Write-Host "Executing ${{ matrix.script }}"
+          pwsh -File "${{ matrix.script }}" -GraphToken $env:GRAPH_TOKEN
