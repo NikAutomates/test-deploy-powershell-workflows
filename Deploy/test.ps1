@@ -362,5 +362,4 @@ function Invoke-GraphAPIRequest {
 
 
 
-
 invoke-graphapirequest -graphurl https://graph.microsoft.com/beta/groups -accesstoken $GraphToken -method GET
