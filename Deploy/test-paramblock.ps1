@@ -1,5 +1,7 @@
-param (
-    [string]$GraphToken
+param(
+    [string]$graph_token,
+    [string]$azure_token
 )
 
-Write-Host $GraphToken
+write-host $graph_token
+write-host $azure_token
