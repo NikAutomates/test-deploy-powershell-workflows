@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 2   # IMPORTANT: need parent commit
+          fetch-depth: 2
 
       - name: Detect changed Deploy/*.ps1 files
         id: detect
@@ -50,6 +50,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: echo "PR detection complete. No scripts executed."
 
+
   # ---------------- EXECUTE (MAIN ONLY) ----------------
   execute:
     needs: detect
@@ -70,15 +71,24 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
-      - name: Get Graph token
+      # ---------------- GET TOKENS ----------------
+      - name: Get Graph + ARM tokens
         run: |
-          TOKEN=$(az account get-access-token \
+          GRAPH=$(az account get-access-token \
             --resource https://graph.microsoft.com \
             --query accessToken -o tsv)
-          echo "GRAPH_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+          ARM=$(az account get-access-token \
+            --resource https://management.azure.com/ \
+            --query accessToken -o tsv)
+
+          echo "GRAPH_TOKEN=$GRAPH" >> $GITHUB_ENV
+          echo "AZURE_TOKEN=$ARM" >> $GITHUB_ENV
 
       - name: Execute PowerShell script
         shell: pwsh
         run: |
           Write-Host "Executing ${{ matrix.script }}"
-          pwsh -File "${{ matrix.script }}" -GraphToken $env:GRAPH_TOKEN
+          pwsh -File "${{ matrix.script }}" `
+            -graph_token $env:GRAPH_TOKEN `
+            -azure_token $env:AZURE_TOKEN
