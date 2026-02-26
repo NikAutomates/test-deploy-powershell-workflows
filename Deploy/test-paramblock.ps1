@@ -9,3 +9,6 @@ Invoke-RestMethod `
   -Headers @{ Authorization = "Bearer $azure_token" } |
   ConvertTo-Json -Depth 10 |
   Write-Host
+
+
+
