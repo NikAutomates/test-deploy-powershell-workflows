@@ -9,4 +9,4 @@ Invoke-RestMethod -Uri "https://graph.microsoft.com/v1.0/groups" -Headers @{ Aut
 
 
 # ARM
-Invoke-RestMethod -Uri "https://management.azure.com/subscriptions?api-version=2020-01-01" -Headers @{ Authorization = "Bearer $azure_token" }
+Invoke-RestMethod -Uri "https://management.azure.com/subscriptions/?api-version=2022-12-01" -Headers @{ Authorization = "Bearer $azure_token" }
